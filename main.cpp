@@ -15,6 +15,7 @@ void show_vecteur(double* vecteur, int size)
 	cout << endl;
 }
 
+
 double* init_vecteur(int size, double value)
 {
 	double* vecteur = new double[size];
@@ -26,6 +27,21 @@ double* init_vecteur(int size, double value)
 }
 
 //
+
+double calcul_norme(double* vecteur, int size)
+{
+	int i = 0;
+	double result = 0.0;
+	
+	for(i = 0;i< size;i++)
+	{
+		result += vecteur[i];
+	}
+	
+	return result;
+}
+
+//fonction à modifier pour prendre en compte le surfer ( et initialiser G en même temps ? ) 
 void fill_vecteur_min(double* vecteur, string line, int current_line)
 {
 	int i = 0;
@@ -81,6 +97,7 @@ void fill_vecteur_min(double* vecteur, string line, int current_line)
 	}
 }
 
+//fonction à modifier pour prendre en compte le surfer
 void fill_vecteur_max(double* vecteur, string line, int current_line)
 {
 	int i = 0;
@@ -136,6 +153,16 @@ void fill_vecteur_max(double* vecteur, string line, int current_line)
 	}
 }
 
+double* produit_nabla_norme(double* nabla, double Xk, int size)
+{
+	double* result = init_vecteur(size, 0.0);
+	for(int i = 0; i<size; i++)
+	{
+		result[i] = nabla[i] * Xk;
+	}
+	return result;
+}
+
 int main(int argc, char **argv)
 {
 	string line;
@@ -144,10 +171,18 @@ int main(int argc, char **argv)
 	int line_number = 0;
 	//int element_number = 0;
 	int current_line = 0;
+	double norme_x = 0;
+	double norme_y = 0;
 
 	
-	double* vecteur_max = NULL;
-	double* vecteur_min = NULL;
+	double* vecteur_max_delta = NULL;
+	double* vecteur_min_nabla = NULL;
+	double* vecteur_x = NULL;
+	double* vecteur_y = NULL;
+	
+	//variables tests à supprimer au final
+	double* vecteur_x_tmp = NULL;
+	double* vecteur_y_tmp = NULL;
 	
 	if(file)
 	{
@@ -160,21 +195,57 @@ int main(int argc, char **argv)
 			else if(current_line == 1)
 			{
 				line_number = stoi(line);
-				vecteur_max = init_vecteur(line_number, 0.0);
-				vecteur_min = init_vecteur(line_number, 0.0);
+				vecteur_max_delta = init_vecteur(line_number, 0.0);
+				vecteur_min_nabla = init_vecteur(line_number, 0.0);
+				vecteur_x = init_vecteur(line_number, 0.0);
+				vecteur_y = init_vecteur(line_number, 0.0);
 			}
 			else if(current_line >= 2)
 			{
-				fill_vecteur_min(vecteur_min, line, current_line-2);
-				fill_vecteur_max(vecteur_max, line, current_line-2);
+				fill_vecteur_min(vecteur_min_nabla, line, current_line-2);
+				fill_vecteur_max(vecteur_max_delta, line, current_line-2);
 			}
 			current_line++;
 		}	
 	}
 	
-	show_vecteur(vecteur_max, line_number);
+	//init X^0 Y^0
+	vecteur_x = vecteur_max_delta;
+	vecteur_y = vecteur_min_nabla;
+	
+	show_vecteur(vecteur_x, line_number);
 	cout << endl;
-	show_vecteur(vecteur_min, line_number);
+	show_vecteur(vecteur_y, line_number);
+	
+	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
+	norme_x = calcul_norme(vecteur_x, line_number);
+	norme_y = calcul_norme(vecteur_y, line_number);
+	
+	cout << "norme x : " << norme_x << " norme_y : " << norme_y << endl;
+	
+	norme_x = 1-norme_x;
+	norme_y = 1-norme_y;
+	
+	cout << "norme x : " << norme_x << " norme_y : " << norme_y << endl;
+	
+	//tester pour s'assurer qu'il y a bien surcharge d'opérateur sur l'affectation, et pas que seuls les pointeurs sont copiés......
+	vecteur_x_tmp = produit_nabla_norme(vecteur_min_nabla, norme_x, line_number);
+	vecteur_y_tmp = produit_nabla_norme(vecteur_min_nabla, norme_y, line_number);
+	
+	//a faire
+	// XkG = produit(vecteur_x, G)
+	// XkG += somme_vect(XkG, produit_nabla_norme(vecteur_min_nabla, norme_x, line_number));
+	// YkG = produit(vecteur_y, G)
+	// YkG += somme_vect(YkG, produit_nabla_norme(vecteur_min_nabla, norme_y, line_number))
+	// boucle
+	//		|vecteur_x[i] = max(vecteur_x[i], XkG[i])
+	//		|vecteur_y[i] = min(vecteur_y[i], YkG[i])
+	// fin boucle
+	//
+	// 
+	// continuer tant que truc epsilon faux
+	
+
 	
 	return 0;
 }
