@@ -18,7 +18,6 @@ public:
 	virtual double *calculerPi(double epsilon) { double *Pi = new double[n]; for (int i = 0; i < n; i++) Pi[i] = 1/n; return Pi; }
 	virtual void afficher() { std::cout << "Matrice Abstraite"; }
 };
-
 class MatriceG : public Matrice {
 private:
 	int n;
@@ -231,7 +230,11 @@ private:
 public:
 	int offset = 1;
 	int order = 0;
-	Reader(const char * filename) {
+	int h = 0;
+	Reader(const char * filename, int offset, int order, int h) {
+		this->offset = offset;
+		this->order = order;
+		this->h = h;
 		file.open(filename);
 	}
 
@@ -241,10 +244,17 @@ public:
 	void readHeader() {
 		std::string buffer;
 		file.seekg(0, file.beg);
-		getline(file, buffer);
-		std::sscanf(buffer.c_str(), "%d", &nbSommets);
-		getline(file, buffer);
-		std::sscanf(buffer.c_str(), "%d", &nbArcs);
+		if (h == 0){
+			getline(file, buffer);
+			std::sscanf(buffer.c_str(), "%d", &nbSommets);
+			getline(file, buffer);
+			std::sscanf(buffer.c_str(), "%d", &nbArcs);
+		}else{
+			getline(file, buffer);
+			std::sscanf(buffer.c_str(), "%d", &nbArcs);
+			getline(file, buffer);
+			std::sscanf(buffer.c_str(), "%d", &nbSommets);
+		}
 	}
 
 	void read(Matrice *m) {
@@ -471,9 +481,7 @@ int main(int argc, char **argv)
 	double* vecteur_y = NULL;
 	
 	//init matrice web
-	Reader r(argv[1]);
-	r.offset = atoi(argv[2]);
-	r.order = atoi(argv[3]);
+	Reader r(argv[1],atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
 	r.readHeader();
 	MatriceG matrice(r.getNbSommets(), EPS);
 	r.read(&matrice);
