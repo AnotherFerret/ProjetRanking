@@ -3,7 +3,6 @@
 #include <string>
 #include <cstdio>
 #include <cmath>
-#include "matrice.h"
 
 #define EPS 0.85
 using namespace std;
@@ -20,165 +19,11 @@ public:
 	virtual void afficher() { std::cout << "Matrice Abstraite"; }
 };
 
-class MatricePleine: public Matrice{
-private:
-	int n;
-	double** matrice;
-public:
-	MatricePleine(int n) :Matrice(n), n(n) {
-		matrice = new double*[n];
-		if (n) {
-			matrice[0] = new double[n*n];
-			for (int i = 1; i < n; i++) {
-				matrice[i] = matrice[0] + i * n;
-			}
-			for (int i = 0; i < n*n; i++)
-				matrice[0][i] = 0;
-		}
-	};
-	virtual void inserer(int x, int y, double valeur) { matrice[x][y] = valeur; }
-	
-	virtual double valeur(int x, int y) { return matrice[x][y]; }
-
-	virtual double *calculerPi(double epsilon) {
-		double *Pi0 = new double[n];
-		double *tab;
-		for (int i = 0; i < n; i++) Pi0[i] = 1.0 / n;
-		double *PiN = new double[n];
-		double maxE, tmp;
-		do {
-			maxE = 0;
-			for (int i = 0; i < n; i++) {
-				PiN[i] = 0;
-				for (int j = 0; j < n; j++) {
-					PiN[i] += valeur(j, i) * Pi0[j];
-				}
-				if (maxE < (tmp = fabs(PiN[i] - Pi0[i])))
-					maxE = tmp;
-			}
-			tab = Pi0; Pi0 = PiN; PiN = tab;
-		} while (maxE > epsilon);
-		return PiN; 
-	}
-
-	virtual void afficher() {
-		std::cout << "[";
-		for (int i = 0; i < n; i++) {
-			for (int j = 0; j < n; j++)
-			{
-				std::cout << valeur(i, j) << "  ";
-			}
-			std::cout << std::endl;
-		}
-		std::cout << "]";
-	}
-	
-	~MatricePleine() {
-		if (n) delete[] matrice[0];
-		delete[] matrice;
-	}
-};
-
-class MatriceCreuse : public Matrice {
-private:
-	int n;
-	class liste_t {
-	public:
-		liste_t *prec;
-		liste_t *next;
-		int sommet;
-		double valeur;
-		liste_t(int sommet, double valeur) :sommet(sommet), valeur(valeur), prec(nullptr), next(nullptr) {}
-		void inserer(int x, double v) {
-			if (sommet == x)
-				valeur = v;
-			else if (next == nullptr){
-				next = new liste_t(x, v);
-				next->prec = this;
-			}else
-				next->inserer(x, v);
-		}
-		~liste_t() {
-			if(next != nullptr)
-				delete next;
-			if(prec != nullptr)
-				prec->next = nullptr;
-		}
-	};
-	liste_t **matrice;
-public:
-	MatriceCreuse(int n) :Matrice(n), n(n) {
-		matrice = new liste_t*[n];
-		for (int i = 0; i < n; i++) matrice[i] = nullptr;
-	}
-	virtual void inserer(int x, int y, double valeur) { 
-		if (matrice[y] == nullptr)
-			matrice[y] = new liste_t(x, valeur);
-		else
-			matrice[y]->inserer(x, valeur);
-	}
-	virtual double valeur(int x, int y) {
-		liste_t *curseur;
-		curseur = matrice[y];
-		while (curseur != nullptr) {
-			if (curseur->sommet == x) {
-				return curseur->valeur;
-			}
-			curseur = curseur->next;
-		}
-		return 0;
-	}
-
-	virtual double *calculerPi(double epsilon) {
-		double *Pi0 = new double[n];
-		double *tab;
-		int a = 0;
-		for (int i = 0; i < n; i++) Pi0[i] = 1.0 / n;
-		double *PiN = new double[n];
-		double maxE, tmp;
-		do {
-			a++;
-			maxE = 0;
-			for (int i = 0; i < n; i++) {
-				PiN[i] = 0;
-				for (int j = 0; j < n; j++) {
-					PiN[i] += valeur(j, i) * Pi0[j];
-				}
-				if (maxE < (tmp = fabs(PiN[i] - Pi0[i])))
-					maxE = tmp;
-			}
-			std::cout << maxE << ";" << a << std::endl;
-			tab = Pi0; Pi0 = PiN; PiN = tab;
-		} while (maxE > epsilon);
-		return PiN;
-	}
-
-	virtual void afficher() {
-		std::cout << "[";
-		for (int i = 0; i < n; i++) {
-			for (int j = 0; j < n; j++)
-			{
-				std::cout << valeur(i, j) << "  ";
-			}
-			std::cout << std::endl;
-		}
-		std::cout << "]";
-	}
-
-	~MatriceCreuse() {
-		for (int i = 1; i < n; i++)
-		{
-			if (matrice[i] != nullptr)
-				delete matrice[i];
-		}
-		delete [] matrice;
-	}
-};
-
-class MatriceWeb : public Matrice {
+class MatriceG : public Matrice {
 private:
 	int n;
 	int nd0;
+	double alpha;
 	struct liste_tag{
 		struct liste_tag *prec;
 		struct liste_tag *next;
@@ -215,7 +60,7 @@ private:
 	struct liste_tag **matrice;
 	int *degrees;
 public:
-	MatriceWeb(int n) :Matrice(n), n(n), nd0(n) {
+	MatriceG(int n, double alpha) :Matrice(n), n(n), nd0(n), alpha(alpha) {
 		matrice = new struct liste_tag *[n];
 		degrees = new int[n];
 		for (int i = 0; i < n; i++) {
@@ -223,18 +68,20 @@ public:
 			degrees[i] = 0;
 		}
 	}
+
+	int size(){return n;}
 	virtual void inserer(int x, int y, double valeur) {
 		if(degrees[x] == 0)
 			nd0--;
 		degrees[x]++;
 		if (matrice[y] == nullptr) {
-			matrice[y] = create_liste(x, valeur);
+			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)*1/n);
 		}
 		else
-			inserer(matrice[y], x, valeur);
+			inserer(matrice[y], x, valeur*alpha + (1-alpha)*1/n);
 	}
 
-	double valeurM(int x, int y) {
+	virtual double valeur(int x, int y) {
 		struct liste_tag *curseur;
 		curseur = matrice[y];
 		while (curseur != nullptr) {
@@ -247,11 +94,7 @@ public:
 			return 1.0 / n;
 		}
 		else
-			return 0;
-	}
-
-	virtual double valeur(int x, int y) {
-		return (valeurM(x,y)*EPS)+((1-EPS)/n);
+			return (1-alpha) / n;
 	}
 
 	virtual double *calculerPi(double epsilon) {
@@ -272,7 +115,7 @@ public:
 				PiN[i] = alphabar;
 				curseur = matrice[i];
 				while(curseur != nullptr){
-					PiN[i] += Pi0[curseur->sommet] * EPS * curseur->valeur;
+					PiN[i] += Pi0[curseur->sommet] * curseur->valeur;
 					curseur = curseur->next;
 				}
 				/*for (int j = 0; j < n; j++) {
@@ -290,6 +133,52 @@ public:
 			tab = Pi0; Pi0 = PiN; PiN = tab;
 		} while (maxE > epsilon);
 		return PiN;
+	}
+
+	double getMin(int i){
+		if(matrice[i] == nullptr)
+			return 1.0 /n;
+		struct liste_tag *curseur;
+		curseur = matrice[i];
+		double res = (1-alpha)/n;
+		while (curseur != nullptr) {
+			if (curseur->valeur < res) {
+				res = curseur->valeur;
+			}
+			curseur = curseur->next;
+		}
+		return res;
+	}
+
+	double * getVecteurMin(){
+		double * res = new double[n];
+		for(int i = 0; i< n; i++){
+			res[i] = getMin(i);
+		}
+		return res;
+	}
+
+	double getMax(int i){
+		if(matrice[i] == nullptr)
+			return 1.0 /n;
+		struct liste_tag *curseur;
+		curseur = matrice[i];
+		double res = (1-alpha)/n;
+		while (curseur != nullptr) {
+			if (curseur->valeur > res) {
+				res = curseur->valeur;
+			}
+			curseur = curseur->next;
+		}
+		return res;
+	}
+
+	double * getVecteurMax(){
+		double * res = new double[n];
+		for(int i = 0; i< n; i++){
+			res[i] = getMax(i);
+		}
+		return res;
 	}
 
 	virtual void afficher() {
@@ -324,7 +213,7 @@ public:
 		}
     }
 
-	~MatriceWeb() {
+	~MatriceG() {
 		for (int i = 1; i < n; i++)
 		{
 			if (matrice[i] != nullptr)
@@ -341,6 +230,7 @@ private:
 	std::ifstream file;
 public:
 	int offset = 1;
+	int order = 0;
 	Reader(const char * filename) {
 		file.open(filename);
 	}
@@ -357,38 +247,45 @@ public:
 		std::sscanf(buffer.c_str(), "%d", &nbArcs);
 	}
 
-	void read(Matrice *m) 
-	{
+	void read(Matrice *m) {
 		readHeader();
 		int off, n;
 		int c;
 		int x, y;
 		double valeur;
-		
-		string buffer;
-		
-		while (!file.eof())
-		{
-			std::cout << "test" << std::endl;
-			getline(file, buffer);
-			off = 0;
-			if(0 == std::sscanf(buffer.c_str() + off, "%d%n", &x, &n)) {break;}
-			
-			off += n;
-			std::sscanf(buffer.c_str() + off, "%d%n", &c, &n);
-			off += n;
-			std::cout << "test2" << std::endl;
-			
-			while (2 == std::sscanf(buffer.c_str() + off, "%d%lf%n", &y, &valeur, &n)) 
+		std::string buffer;
+		if(order == 0){
+			while (!file.eof())
 			{
-				std::cout << "test3" << std::endl;
+				getline(file, buffer);
+				off = 0;
+				if(0 == std::sscanf(buffer.c_str() + off, "%d%n", &x, &n))
+					break;
 				off += n;
-				std::cout << "test4" << std::endl;
-				//segfault ligne dessous
-				m->inserer(x - offset, y - offset, valeur);
-				std::cout << "test5" << std::endl;
+				std::sscanf(buffer.c_str() + off, "%d%n", &c, &n);
+				off += n;
+				//std::cout << x << std::endl;
+				while (2 == std::sscanf(buffer.c_str() + off, "%d%lf%n", &y, &valeur, &n)) {
+					off += n;
+					m->inserer(x - offset, y - offset, valeur);
+				}
 			}
-			std::cout << "test10" << std::endl;
+		}else{
+			while (!file.eof())
+			{
+				getline(file, buffer);
+				off = 0;
+				if(0 == std::sscanf(buffer.c_str() + off, "%d%n", &x, &n))
+					break;
+				off += n;
+				std::sscanf(buffer.c_str() + off, "%d%n", &c, &n);
+				off += n;
+				//std::cout << x << std::endl;
+				while (2 == std::sscanf(buffer.c_str() + off, "%lf%d%n", &valeur, &y, &n)) {
+					off += n;
+					m->inserer(x - offset, y - offset, valeur);
+				}
+			}
 		}
 	}
 
@@ -575,9 +472,10 @@ int main(int argc, char **argv)
 	
 	//init matrice web
 	Reader r(argv[1]);
-	r.offset = 1;
+	r.offset = atoi(argv[2]);
+	r.order = atoi(argv[3]);
 	r.readHeader();
-	MatriceWeb matrice(r.getNbSommets());
+	MatriceG matrice(r.getNbSommets(), EPS);
 	r.read(&matrice);
 	
 	//variables tests à supprimer au final
@@ -616,13 +514,19 @@ int main(int argc, char **argv)
 	show_vecteur(vecteur_x, line_number);
 	cout << endl;
 	show_vecteur(vecteur_y, line_number);
+	cout << endl;
+	show_vecteur(matrice.getVecteurMax(), matrice.size());
+	cout << endl;
+	show_vecteur(matrice.getVecteurMin(), matrice.size());
 	
 	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
 	norme_x = calcul_norme(vecteur_x, line_number);
 	norme_y = calcul_norme(vecteur_y, line_number);
 	
 	cout << "norme x : " << norme_x << " norme_y : " << norme_y << endl;
-	
+	cout << endl;
+	cout << "norme x : " << calcul_norme(matrice.getVecteurMax(), matrice.size()) << " norme_y : " << calcul_norme(matrice.getVecteurMin(), matrice.size()) << endl;
+
 	norme_x = 1-norme_x;
 	norme_y = 1-norme_y;
 	
