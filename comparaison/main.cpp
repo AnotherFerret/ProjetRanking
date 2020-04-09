@@ -33,6 +33,7 @@ public:
 		}
 	};
 	virtual void inserer(int x, int y, double valeur) { matrice[x][y] = valeur; }
+	
 	virtual double valeur(int x, int y) { return matrice[x][y]; }
 
 	virtual double *calculerPi(double epsilon) {
@@ -298,6 +299,26 @@ public:
 		}
 		std::cout << "]";
 	}
+	
+	void produitVecteur(double* vecteurEntree, double* vecteurSortie)
+	{
+		double alphabar = 0;
+		liste_tag* curseur;
+		for (int i = 0; i < n; i++)
+		{
+			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-EPS)/n));
+		}
+		for (int i = 0; i < n; i++) 
+		{
+			vecteurSortie[i] = alphabar;
+			curseur = matrice[i];
+			while(curseur != nullptr)
+			{
+				vecteurSortie[i] += vecteurEntree[curseur->sommet] * EPS * curseur->valeur;
+				curseur = curseur->next;
+			}
+		}
+    }
 
 	~MatriceWeb() {
 		for (int i = 1; i < n; i++)
