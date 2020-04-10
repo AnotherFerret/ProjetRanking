@@ -4,6 +4,10 @@
 #include <cstdio>
 #include <cmath>
 
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+#define ABS(N) (((N)<0)?(-(N)):((N)))
+
 #define EPS 0.85
 using namespace std;
 
@@ -74,10 +78,10 @@ public:
 			nd0--;
 		degrees[x]++;
 		if (matrice[y] == nullptr) {
-			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)*1/n);
+			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)*1.0/n);
 		}
 		else
-			inserer(matrice[y], x, valeur*alpha + (1-alpha)*1/n);
+			inserer(matrice[y], x, valeur*alpha + (1-alpha)*1.0/n);
 	}
 
 	virtual double valeur(int x, int y) {
@@ -109,7 +113,7 @@ public:
 			maxE = 0;
 			alphabar = 0;
 			for (int i = 0; i < n; i++)
-				alphabar+= Pi0[i] * ((degrees[i] == 0)?(1.0/n):((1.0-EPS)/n));
+				alphabar+= Pi0[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
 			for (int i = 0; i < n; i++) {
 				PiN[i] = alphabar;
 				curseur = matrice[i];
@@ -139,7 +143,7 @@ public:
 			return 1.0 /n;
 		struct liste_tag *curseur;
 		curseur = matrice[i];
-		double res = (1-alpha)/n;
+		double res = (1.0-alpha)/n;
 		while (curseur != nullptr) {
 			if (curseur->valeur < res) {
 				res = curseur->valeur;
@@ -162,7 +166,7 @@ public:
 			return 1.0 /n;
 		struct liste_tag *curseur;
 		curseur = matrice[i];
-		double res = (1-alpha)/n;
+		double res = (1.0-alpha)/n;
 		while (curseur != nullptr) {
 			if (curseur->valeur > res) {
 				res = curseur->valeur;
@@ -198,7 +202,7 @@ public:
 		liste_tag* curseur;
 		for (int i = 0; i < n; i++)
 		{
-			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-EPS)/n));
+			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
 		}
 		for (int i = 0; i < n; i++) 
 		{
@@ -206,7 +210,7 @@ public:
 			curseur = matrice[i];
 			while(curseur != nullptr)
 			{
-				vecteurSortie[i] += vecteurEntree[curseur->sommet] * EPS * curseur->valeur;
+				vecteurSortie[i] += vecteurEntree[curseur->sommet] * curseur->valeur;
 				curseur = curseur->next;
 			}
 		}
@@ -302,6 +306,21 @@ public:
 	~Reader() { file.close(); }
 };
 
+void somme_vect(double * vect1, double * vect2, int size){
+	for(int i = 0; i < size; i++)
+	{
+		vect1[i] += vect2[i];
+	}
+}
+
+double* diff_vect(double * vect1, double * vect2, int size){
+	double* vecteur = new double[size];
+	for(int i = 0; i < size; i++)
+	{
+		vecteur[i] = ABS(vect1[i] - vect2[i]);
+	}
+	return vecteur;
+}
 
 //
 void show_vecteur(double* vecteur, int size)
@@ -337,6 +356,19 @@ double calcul_norme(double* vecteur, int size)
 	for(i = 0;i< size;i++)
 	{
 		result += vecteur[i];
+	}
+	
+	return result;
+}
+
+double calcul_norme(double* vecteur1, double* vecteur2, int size)
+{
+	int i = 0;
+	double result = 0.0;
+	
+	for(i = 0;i< size;i++)
+	{
+		result += ABS(vecteur1[i]-vecteur2[i]);
 	}
 	
 	return result;
@@ -464,6 +496,14 @@ double* produit_nabla_norme(double* nabla, double Xk, int size)
 	return result;
 }
 
+void produit_nabla_norme(double* nabla, double Xk, int size, double * nablap)
+{
+	for(int i = 0; i<size; i++)
+	{
+		nablap[i] = nabla[i] * (1-Xk);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	string line;
@@ -475,11 +515,6 @@ int main(int argc, char **argv)
 	double norme_y = 0;
 
 	
-	double* vecteur_max_delta = NULL;
-	double* vecteur_min_nabla = NULL;
-	double* vecteur_x = NULL;
-	double* vecteur_y = NULL;
-	
 	//init matrice web
 	Reader r(argv[1],atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
 	r.readHeader();
@@ -487,10 +522,16 @@ int main(int argc, char **argv)
 	r.read(&matrice);
 	
 	//variables tests à supprimer au final
-	double* vecteur_x_tmp = NULL;
-	double* vecteur_y_tmp = NULL;
+	double* vecteur_max_delta = matrice.getVecteurMax();
+	double* vecteur_min_nabla = matrice.getVecteurMin();
+
+	double* vecteur_xkg = new double[matrice.size()];
+	double* vecteur_ykg = new double[matrice.size()];
+
+	double* vecteur_x = NULL;
+	double* vecteur_y = NULL;
 	
-	if(file)
+	/*if(file)
 	{
 		while(getline(file, line))
 		{
@@ -516,18 +557,40 @@ int main(int argc, char **argv)
 	}
 	
 	//init X^0 Y^0
-	vecteur_x = vecteur_max_delta;
-	vecteur_y = vecteur_min_nabla;
 	
 	show_vecteur(vecteur_x, line_number);
 	cout << endl;
 	show_vecteur(vecteur_y, line_number);
-	cout << endl;
-	show_vecteur(matrice.getVecteurMax(), matrice.size());
-	cout << endl;
-	show_vecteur(matrice.getVecteurMin(), matrice.size());
+	cout << endl;*/
+
+	vecteur_x = vecteur_min_nabla;
+	vecteur_y = vecteur_max_delta;
 	
+	int count = 0;
+	double reste = 0; 
+	double * nablax = new double[matrice.size()];
+	double * nablay = new double[matrice.size()];
 	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
+	while((reste = calcul_norme(vecteur_x, vecteur_y, matrice.size())) > 1e-6){
+
+		cout << "itération : "<< count << ":: résidus : " << reste << endl;
+
+		matrice.produitVecteur(vecteur_x, vecteur_xkg);
+		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_x, matrice.size()),matrice.size(), nablax);
+		somme_vect(vecteur_xkg, nablax, matrice.size());
+
+		matrice.produitVecteur(vecteur_y, vecteur_ykg);
+		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_y, matrice.size()),matrice.size(), nablay);
+		somme_vect(vecteur_ykg, nablay, matrice.size());
+
+		for(int i = 0; i < matrice.size(); i++){
+			vecteur_x[i] = max(vecteur_x[i], vecteur_xkg[i]);
+			vecteur_y[i] = min(vecteur_y[i], vecteur_ykg[i]);
+		}
+		count ++;
+	}
+	cout << "itération : "<< count << ":: résidus : " << reste << endl;
+/*
 	norme_x = calcul_norme(vecteur_x, line_number);
 	norme_y = calcul_norme(vecteur_y, line_number);
 	
@@ -543,7 +606,10 @@ int main(int argc, char **argv)
 	//tester pour s'assurer qu'il y a bien surcharge d'opérateur sur l'affectation, et pas que seuls les pointeurs sont copiés......
 	vecteur_x_tmp = produit_nabla_norme(vecteur_min_nabla, norme_x, line_number);
 	vecteur_y_tmp = produit_nabla_norme(vecteur_min_nabla, norme_y, line_number);
-	
+	*/
+
+
+
 	//a faire
 	// XkG = produit(vecteur_x, G)
 	// XkG += somme_vect(XkG, produit_nabla_norme(vecteur_min_nabla, norme_x, line_number));
