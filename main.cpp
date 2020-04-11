@@ -140,7 +140,7 @@ public:
 
 	double getMin(int i){
 		if(matrice[i] == nullptr)
-			return 1.0 /n;
+			return (1.0-alpha)/n;
 		struct liste_tag *curseur;
 		curseur = matrice[i];
 		double res = (1.0-alpha)/n;
@@ -500,7 +500,7 @@ void produit_nabla_norme(double* nabla, double Xk, int size, double * nablap)
 {
 	for(int i = 0; i<size; i++)
 	{
-		nablap[i] = nabla[i] * (1-Xk);
+		nablap[i] = nabla[i] * (1.0-Xk);
 	}
 }
 
@@ -570,21 +570,22 @@ int main(int argc, char **argv)
 	double reste = 0; 
 	double * nablax = new double[matrice.size()];
 	double * nablay = new double[matrice.size()];
+	int n = matrice.size();
 	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
-	cout << "taille : "<< matrice.size() << ":: résidus : " << reste << endl;
-	while((reste = calcul_norme(vecteur_x, vecteur_y, matrice.size())) > 1e-6){
+	cout << "taille : "<< n << ":: résidus : " << reste << endl;
+	while((reste = calcul_norme(vecteur_x, vecteur_y, n)) > 1e-6){
 
-		cout << "itération : "<< count << ":: résidus : " << reste << endl;
+		cout << "itération : "<< count << ":: résidus : " << reste << ":: x :" << calcul_norme(vecteur_x, n) << ":: y :" << calcul_norme(vecteur_y, n) << endl;
 
 		matrice.produitVecteur(vecteur_x, vecteur_xkg);
-		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_x, matrice.size()),matrice.size(), nablax);
-		somme_vect(vecteur_xkg, nablax, matrice.size());
+		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_x, n),n, nablax);
+		somme_vect(vecteur_xkg, nablax, n);
 
 		matrice.produitVecteur(vecteur_y, vecteur_ykg);
-		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_y, matrice.size()),matrice.size(), nablay);
+		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_y, n),n, nablay);
 		somme_vect(vecteur_ykg, nablay, matrice.size());
 
-		for(int i = 0; i < matrice.size(); i++){
+		for(int i = 0; i < n; i++){
 			vecteur_x[i] = max(vecteur_x[i], ABS(vecteur_xkg[i]));
 			vecteur_y[i] = min(vecteur_y[i], ABS(vecteur_ykg[i]));
 		}
