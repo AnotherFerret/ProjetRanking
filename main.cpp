@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <cmath>
 
-#define min(a,b) ((a)<(b)?(a):(b))
-#define max(a,b) ((a)>(b)?(a):(b))
+#define min(a,b) (((a)<(b))?(a):(b))
+#define max(a,b) (((a)>(b))?(a):(b))
 #define ABS(N) (((N)<0)?(-(N)):((N)))
 
 #define EPS 0.85
@@ -78,10 +78,10 @@ public:
 			nd0--;
 		degrees[x]++;
 		if (matrice[y] == nullptr) {
-			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)*1.0/n);
+			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)/n);
 		}
 		else
-			inserer(matrice[y], x, valeur*alpha + (1-alpha)*1.0/n);
+			inserer(matrice[y], x, valeur*alpha + (1-alpha)/n);
 	}
 
 	virtual double valeur(int x, int y) {
@@ -563,14 +563,15 @@ int main(int argc, char **argv)
 	show_vecteur(vecteur_y, line_number);
 	cout << endl;*/
 
-	vecteur_x = vecteur_min_nabla;
-	vecteur_y = vecteur_max_delta;
+	vecteur_x = matrice.getVecteurMin();
+	vecteur_y = matrice.getVecteurMax();
 	
 	int count = 0;
 	double reste = 0; 
 	double * nablax = new double[matrice.size()];
 	double * nablay = new double[matrice.size()];
 	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
+	cout << "taille : "<< matrice.size() << ":: résidus : " << reste << endl;
 	while((reste = calcul_norme(vecteur_x, vecteur_y, matrice.size())) > 1e-6){
 
 		cout << "itération : "<< count << ":: résidus : " << reste << endl;
@@ -584,8 +585,8 @@ int main(int argc, char **argv)
 		somme_vect(vecteur_ykg, nablay, matrice.size());
 
 		for(int i = 0; i < matrice.size(); i++){
-			vecteur_x[i] = max(vecteur_x[i], vecteur_xkg[i]);
-			vecteur_y[i] = min(vecteur_y[i], vecteur_ykg[i]);
+			vecteur_x[i] = max(vecteur_x[i], ABS(vecteur_xkg[i]));
+			vecteur_y[i] = min(vecteur_y[i], ABS(vecteur_ykg[i]));
 		}
 		count ++;
 	}
