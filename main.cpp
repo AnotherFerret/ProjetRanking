@@ -3,13 +3,68 @@
 #include <string>
 #include <cstdio>
 #include <cmath>
+#include <iomanip>
+#include <chrono>
 
 #define min(a,b) (((a)<(b))?(a):(b))
 #define max(a,b) (((a)>(b))?(a):(b))
 #define ABS(N) (((N)<0)?(-(N)):((N)))
 
-#define EPS 0.85
+#define EPS 0.55
 using namespace std;
+
+double calcul_norme(double* vecteur1, double* vecteur2, int size);
+
+std::string beautify_duration(std::chrono::nanoseconds nanoseconds)
+{
+    using namespace std::chrono;
+    typedef duration<int, std::ratio<86400>> days;
+    auto d = duration_cast<days>(nanoseconds);
+    nanoseconds -= d;
+    auto h = duration_cast<hours>(nanoseconds);
+    nanoseconds -= h;
+    auto m = duration_cast<minutes>(nanoseconds);
+    nanoseconds -= m;
+    auto s = duration_cast<seconds>(nanoseconds);
+    nanoseconds -= s;
+    auto ms = duration_cast<milliseconds>(nanoseconds);
+    nanoseconds -= ms;
+
+    auto dc = d.count();
+    auto hc = h.count();
+    auto mc = m.count();
+    auto sc = s.count();
+    auto msc = ms.count();
+    auto nsc = nanoseconds.count();
+
+    std::stringstream ss;
+    ss.fill('0');
+    if (dc) {
+        ss << d.count() << "d";
+    }
+    if (dc || hc) {
+        if (dc) { ss << std::setw(2); } //pad if second set of numbers
+        ss << h.count() << "h";
+    }
+    if (dc || hc || mc) {
+        if (dc || hc) { ss << std::setw(2); }
+        ss << m.count() << "m";
+    }
+    if (dc || hc || mc || sc) {
+        if (dc || hc || mc) { ss << std::setw(2); }
+        ss << s.count() << 's';
+    }
+    if (dc || hc || mc || sc || msc) {
+        if (dc || hc || mc || sc) { ss << std::setw(3); }
+        ss << ms.count() << "ms";
+    }
+    if (dc || hc || mc || sc || msc || nsc) {
+        if (dc || hc || mc || sc || msc) { ss << std::setw(3); }
+        ss << nanoseconds.count() << "ns";
+    }
+
+    return ss.str();
+}
 
 //declaration matrices
 class Matrice {
@@ -78,10 +133,10 @@ public:
 			nd0--;
 		degrees[x]++;
 		if (matrice[y] == nullptr) {
-			matrice[y] = create_liste(x, valeur*alpha + (1-alpha)/n);
+			matrice[y] = create_liste(x, valeur);
 		}
 		else
-			inserer(matrice[y], x, valeur*alpha + (1-alpha)/n);
+			inserer(matrice[y], x, valeur);
 	}
 
 	virtual double valeur(int x, int y) {
@@ -89,7 +144,7 @@ public:
 		curseur = matrice[y];
 		while (curseur != nullptr) {
 			if (curseur->sommet == x) {
-				return curseur->valeur;
+				return curseur->valeur * alpha + (1-alpha) / n;
 			}
 			curseur = curseur->next;
 		}
@@ -100,41 +155,43 @@ public:
 			return (1-alpha) / n;
 	}
 
+	void produitVecteur(double* vecteurEntree, double* vecteurSortie)
+	{
+		double alphabar = 0;
+		liste_tag* curseur;
+		for (int i = 0; i < n; i++)
+		{
+			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
+		}
+		for (int i = 0; i < n; i++) 
+		{
+			vecteurSortie[i] = alphabar;
+			curseur = matrice[i];
+			while(curseur != nullptr)
+			{
+				vecteurSortie[i] += vecteurEntree[curseur->sommet] * curseur->valeur * alpha;
+				curseur = curseur->next;
+			}
+		}
+    }
+
 	virtual double *calculerPi(double epsilon) {
+		auto start = chrono::high_resolution_clock::now();
 		double *Pi0 = new double[n];
 		double *tab;
 		int a = 0;
 		for (int i = 0; i < n; i++) Pi0[i] = 1.0 / n;
 		double *PiN = new double[n];
-		double maxE, tmp, alphabar;
-		struct liste_tag *curseur;
+		double maxE;
 		do {
 			a++;
-			maxE = 0;
-			alphabar = 0;
-			for (int i = 0; i < n; i++)
-				alphabar+= Pi0[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
-			for (int i = 0; i < n; i++) {
-				PiN[i] = alphabar;
-				curseur = matrice[i];
-				while(curseur != nullptr){
-					PiN[i] += Pi0[curseur->sommet] * curseur->valeur;
-					curseur = curseur->next;
-				}
-				/*for (int j = 0; j < n; j++) {
-					PiN[i] += valeur(j, i) * Pi0[j];
-				}*/
-				if (maxE < (tmp = fabs(PiN[i] - Pi0[i])))
-					maxE = tmp;
-			}
-			//std::cout << std::endl;
-			//for (int i = 0; i < n; i++) {
-			//	std::cout << PiN[i] << ":";
-			//}
-			//std::cout << std::endl;
-			std::cout << maxE << ";" << a << std::endl;
-			tab = Pi0; Pi0 = PiN; PiN = tab;
+			produitVecteur(Pi0, PiN);
+			maxE = calcul_norme(PiN, Pi0, n);
+			//cout << "itérations : "<< a << ":: résidus : " << maxE << endl;
+			tab = Pi0;Pi0 = PiN;PiN = tab;
 		} while (maxE > epsilon);
+		auto stop = chrono::high_resolution_clock::now();
+		cout << "itérations : "<< a << ":: résidus : " << maxE << ":: time :" << beautify_duration(chrono::duration_cast<chrono::nanoseconds>(stop-start)) << endl;
 		return PiN;
 	}
 
@@ -145,8 +202,8 @@ public:
 		curseur = matrice[i];
 		double res = (1.0-alpha)/n;
 		while (curseur != nullptr) {
-			if (curseur->valeur < res) {
-				res = curseur->valeur;
+			if (curseur->valeur * alpha + (1.0-alpha)/n < res) {
+				res = curseur->valeur *alpha + (1.0-alpha)/n;
 			}
 			curseur = curseur->next;
 		}
@@ -168,8 +225,8 @@ public:
 		curseur = matrice[i];
 		double res = (1.0-alpha)/n;
 		while (curseur != nullptr) {
-			if (curseur->valeur > res) {
-				res = curseur->valeur;
+			if (curseur->valeur * alpha + (1.0-alpha)/n > res) {
+				res = curseur->valeur * alpha + (1.0-alpha)/n;
 			}
 			curseur = curseur->next;
 		}
@@ -195,26 +252,6 @@ public:
 		}
 		std::cout << "]";
 	}
-	
-	void produitVecteur(double* vecteurEntree, double* vecteurSortie)
-	{
-		double alphabar = 0;
-		liste_tag* curseur;
-		for (int i = 0; i < n; i++)
-		{
-			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
-		}
-		for (int i = 0; i < n; i++) 
-		{
-			vecteurSortie[i] = alphabar;
-			curseur = matrice[i];
-			while(curseur != nullptr)
-			{
-				vecteurSortie[i] += vecteurEntree[curseur->sommet] * curseur->valeur;
-				curseur = curseur->next;
-			}
-		}
-    }
 
 	~MatriceG() {
 		for (int i = 1; i < n; i++)
@@ -313,16 +350,6 @@ void somme_vect(double * vect1, double * vect2, int size){
 	}
 }
 
-double* diff_vect(double * vect1, double * vect2, int size){
-	double* vecteur = new double[size];
-	for(int i = 0; i < size; i++)
-	{
-		vecteur[i] = ABS(vect1[i] - vect2[i]);
-	}
-	return vecteur;
-}
-
-//
 void show_vecteur(double* vecteur, int size)
 {
 	int i = 0;
@@ -333,20 +360,6 @@ void show_vecteur(double* vecteur, int size)
 	}
 	cout << endl;
 }
-
-
-double* init_vecteur(int size, double value)
-{
-	double* vecteur = new double[size];
-	for(int j = 0; j < size; j++)
-		{
-			vecteur[j] = value;
-		}
-	return vecteur;
-}
-
-
-//
 
 double calcul_norme(double* vecteur, int size)
 {
@@ -372,118 +385,6 @@ double calcul_norme(double* vecteur1, double* vecteur2, int size)
 	}
 	
 	return result;
-}
-
-//fonction à modifier pour prendre en compte le surfer ( et initialiser G en même temps ? ) 
-void fill_vecteur_min(double* vecteur, string line, int current_line)
-{
-	int i = 0;
-	int reading = 0;
-	
-	//int line_size = 0;
-	double tmp_double = 0.0;
-	
-	string current = "";
-	
-	while(line[i] != '\n' && line[i] != '\0')
-	{
-		while(line[i] == ' ' && line[i] != '\0')
-		{
-			i++;
-		}
-		while((line[i] >= '0' && line[i] <= '9') || line[i] == 'E' || line[i] == '-' || line[i] == '.')
-		{
-			current += line[i];
-			i++;
-		}
-		
-		//cout << current << "\n";
-		if(reading == 0)
-		{
-			//ignore le premier chiffre
-			reading = 1;
-		}
-		else if(reading == 1)
-		{
-			//stocke la taille de la ligne
-			reading = 2;
-			//line_size = stoi(current);
-		}
-		else if(reading == 2)
-		{
-			//recupere la valeur double
-			reading = 3;
-			if( !current.empty() ){tmp_double = stod(current);}
-							
-		}
-		else if(reading == 3)
-		{
-			//ecrit la valeur double dans la case suivante
-			if(tmp_double < vecteur[current_line] || vecteur[current_line] == 0.0)
-			{
-				vecteur[current_line] = tmp_double;
-			}
-			reading = 2;
-		}
-		i++;
-		current = "";
-	}
-}
-
-//fonction à modifier pour prendre en compte le surfer
-void fill_vecteur_max(double* vecteur, string line, int current_line)
-{
-	int i = 0;
-	int reading = 0;
-	
-	//int line_size = 0;
-	double tmp_double = 0.0;
-	
-	string current = "";
-	
-	while(line[i] != '\n' && line[i] != '\0')
-	{
-		while(line[i] == ' ' && line[i] != '\0')
-		{
-			i++;
-		}
-		while((line[i] >= '0' && line[i] <= '9') || line[i] == 'E' || line[i] == '-' || line[i] == '.')
-		{
-			current += line[i];
-			i++;
-		}
-		
-		//cout << current << "\n";
-		if(reading == 0)
-		{
-			//ignore le premier chiffre
-			reading = 1;
-		}
-		else if(reading == 1)
-		{
-			//stocke la taille de la ligne
-			reading = 2;
-			//line_size = stoi(current);
-		}
-		else if(reading == 2)
-		{
-			//recupere la valeur double
-			reading = 3;
-			if( !current.empty() ){tmp_double = stod(current);}
-							
-		}
-		else if(reading == 3)
-		{
-			//ecrit la valeur double dans la case suivante
-			if(tmp_double > vecteur[current_line] || vecteur[current_line] == 0.0)
-			{
-				vecteur[current_line] = tmp_double;
-			}
-			reading = 2;
-		}
-		i++;
-		current = "";
-	}
 }
 
 double* produit_nabla_norme(double* nabla, double Xk, int size)
@@ -521,7 +422,6 @@ int main(int argc, char **argv)
 	MatriceG matrice(r.getNbSommets(), EPS);
 	r.read(&matrice);
 	
-	//variables tests à supprimer au final
 	double* vecteur_max_delta = matrice.getVecteurMax();
 	double* vecteur_min_nabla = matrice.getVecteurMin();
 
@@ -531,37 +431,6 @@ int main(int argc, char **argv)
 	double* vecteur_x = NULL;
 	double* vecteur_y = NULL;
 	
-	/*if(file)
-	{
-		while(getline(file, line))
-		{
-			if(current_line == 0)
-			{
-				
-			}
-			else if(current_line == 1)
-			{
-				line_number = stoi(line);
-				vecteur_max_delta = init_vecteur(line_number, 0.0);
-				vecteur_min_nabla = init_vecteur(line_number, 0.0);
-				vecteur_x = init_vecteur(line_number, 0.0);
-				vecteur_y = init_vecteur(line_number, 0.0);
-			}
-			else if(current_line >= 2)
-			{
-				fill_vecteur_min(vecteur_min_nabla, line, current_line-2);
-				fill_vecteur_max(vecteur_max_delta, line, current_line-2);
-			}
-			current_line++;
-		}	
-	}
-	
-	//init X^0 Y^0
-	
-	show_vecteur(vecteur_x, line_number);
-	cout << endl;
-	show_vecteur(vecteur_y, line_number);
-	cout << endl;*/
 
 	vecteur_x = matrice.getVecteurMin();
 	vecteur_y = matrice.getVecteurMax();
@@ -571,11 +440,11 @@ int main(int argc, char **argv)
 	double * nablax = new double[matrice.size()];
 	double * nablay = new double[matrice.size()];
 	int n = matrice.size();
-	//future boucle tant que calcul_norme(difference(vecteur_x, vecteur_y)) > epsilon
-	cout << "taille : "<< n << ":: résidus : " << reste << endl;
+	cout << "taille : "<< n << endl;
+	double * pi = matrice.calculerPi(1e-6);
+	auto start = chrono::high_resolution_clock::now();
 	while((reste = calcul_norme(vecteur_x, vecteur_y, n)) > 1e-6){
-
-		cout << "itération : "<< count << ":: résidus : " << reste << ":: x :" << calcul_norme(vecteur_x, n) << ":: y :" << calcul_norme(vecteur_y, n) << endl;
+		//cout << "itération : "<< count << ":: résidus : " << reste << ":: x :" << calcul_norme(vecteur_x, n) << ":: y :" << calcul_norme(vecteur_y, n) << endl;
 
 		matrice.produitVecteur(vecteur_x, vecteur_xkg);
 		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_x, n),n, nablax);
@@ -591,41 +460,9 @@ int main(int argc, char **argv)
 		}
 		count ++;
 	}
-	cout << "itération : "<< count << ":: résidus : " << reste << endl;
-/*
-	norme_x = calcul_norme(vecteur_x, line_number);
-	norme_y = calcul_norme(vecteur_y, line_number);
-	
-	cout << "norme x : " << norme_x << " norme_y : " << norme_y << endl;
-	cout << endl;
-	cout << "norme x : " << calcul_norme(matrice.getVecteurMax(), matrice.size()) << " norme_y : " << calcul_norme(matrice.getVecteurMin(), matrice.size()) << endl;
-
-	norme_x = 1-norme_x;
-	norme_y = 1-norme_y;
-	
-	cout << "norme x : " << norme_x << " norme_y : " << norme_y << endl;
-	
-	//tester pour s'assurer qu'il y a bien surcharge d'opérateur sur l'affectation, et pas que seuls les pointeurs sont copiés......
-	vecteur_x_tmp = produit_nabla_norme(vecteur_min_nabla, norme_x, line_number);
-	vecteur_y_tmp = produit_nabla_norme(vecteur_min_nabla, norme_y, line_number);
-	*/
-
-
-
-	//a faire
-	// XkG = produit(vecteur_x, G)
-	// XkG += somme_vect(XkG, produit_nabla_norme(vecteur_min_nabla, norme_x, line_number));
-	// YkG = produit(vecteur_y, G)
-	// YkG += somme_vect(YkG, produit_nabla_norme(vecteur_min_nabla, norme_y, line_number))
-	// boucle
-	//		|vecteur_x[i] = max(vecteur_x[i], XkG[i])
-	//		|vecteur_y[i] = min(vecteur_y[i], YkG[i])
-	// fin boucle
-	//
-	// 
-	// continuer tant que truc epsilon faux
-	
-
+	auto stop = chrono::high_resolution_clock::now();
+	cout << "itérations : "<< count << ":: résidus : " << reste << ":: time :" << beautify_duration(chrono::duration_cast<chrono::nanoseconds>(stop-start)) << endl;
+	cout << "résidus X - produit succecifs :" << calcul_norme(vecteur_x, pi, n)  << endl << "résidus Y - produit succecifs :" << calcul_norme(vecteur_y, pi, n) << endl;
 	
 	return 0;
 }
