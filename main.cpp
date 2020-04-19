@@ -387,16 +387,6 @@ double calcul_norme(double* vecteur1, double* vecteur2, int size)
 	return result;
 }
 
-double* produit_nabla_norme(double* nabla, double Xk, int size)
-{
-	double* result = init_vecteur(size, 0.0);
-	for(int i = 0; i<size; i++)
-	{
-		result[i] = nabla[i] * Xk;
-	}
-	return result;
-}
-
 void produit_nabla_norme(double* nabla, double Xk, int size, double * nablap)
 {
 	for(int i = 0; i<size; i++)
