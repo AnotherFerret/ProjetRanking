@@ -10,7 +10,7 @@
 #define max(a,b) (((a)>(b))?(a):(b))
 #define ABS(N) (((N)<0)?(-(N)):((N)))
 
-#define EPS 0.55
+#define EPS 0.85
 using namespace std;
 
 double calcul_norme(double* vecteur1, double* vecteur2, int size);
@@ -161,7 +161,7 @@ public:
 		liste_tag* curseur;
 		for (int i = 0; i < n; i++)
 		{
-			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?(1.0/n):((1.0-alpha)/n));
+			alphabar+= vecteurEntree[i] * ((degrees[i] == 0)?((1.0)/n):((1.0-alpha)/n));
 		}
 		for (int i = 0; i < n; i++) 
 		{
@@ -178,14 +178,31 @@ public:
 	virtual double *calculerPi(double epsilon) {
 		auto start = chrono::high_resolution_clock::now();
 		double *Pi0 = new double[n];
+		double *PiN = new double[n];
 		double *tab;
+		double alphabar;
 		int a = 0;
 		for (int i = 0; i < n; i++) Pi0[i] = 1.0 / n;
-		double *PiN = new double[n];
+		for (int i = 0; i < n; i++) PiN[i] = 1.0 / n;		
 		double maxE;
 		do {
 			a++;
-			produitVecteur(Pi0, PiN);
+			alphabar = (1.0-alpha)/n;
+			liste_tag* curseur;
+			for (int i = 0; i < n; i++)
+			{
+				alphabar+= ((degrees[i] == 0)?(alpha/n * Pi0[i]):0);
+			}
+			for (int i = 0; i < n; i++) 
+			{
+				PiN[i] = alphabar;
+				curseur = matrice[i];
+				while(curseur != nullptr)
+				{
+					PiN[i] += Pi0[curseur->sommet] * curseur->valeur * alpha;
+					curseur = curseur->next;
+				}
+			}
 			maxE = calcul_norme(PiN, Pi0, n);
 			//cout << "itérations : "<< a << ":: résidus : " << maxE << endl;
 			tab = Pi0;Pi0 = PiN;PiN = tab;
@@ -320,6 +337,9 @@ public:
 					off += n;
 					m->inserer(x - offset, y - offset, valeur);
 				}
+				/*if(x%10000 == 0){
+					std::cout << (x- offset) << std::endl;
+				}*/
 			}
 		}else{
 			while (!file.eof())
@@ -335,6 +355,9 @@ public:
 				while (2 == std::sscanf(buffer.c_str() + off, "%lf%d%n", &valeur, &y, &n)) {
 					off += n;
 					m->inserer(x - offset, y - offset, valeur);
+				}
+				if(x%10000 == 0){
+					std::cout << (x- offset) << std::endl;
 				}
 			}
 		}
@@ -397,22 +420,25 @@ void produit_nabla_norme(double* nabla, double Xk, int size, double * nablap)
 
 int main(int argc, char **argv)
 {
+	cout << argv[1] << endl;
 	string line;
 	ifstream file(argv[1]);
 	
-	int line_number = 0;
+	/*int line_number = 0;
 	int current_line = 0;
 	double norme_x = 0;
-	double norme_y = 0;
+	double norme_y = 0;*/
 
 	
 	//init matrice web
 	Reader r(argv[1],atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
 	r.readHeader();
 	MatriceG matrice(r.getNbSommets(), EPS);
+	auto startr = chrono::high_resolution_clock::now();
 	r.read(&matrice);
+	auto stopr = chrono::high_resolution_clock::now();
 	
-	double* vecteur_max_delta = matrice.getVecteurMax();
+	//double* vecteur_max_delta = matrice.getVecteurMax();
 	double* vecteur_min_nabla = matrice.getVecteurMin();
 
 	double* vecteur_xkg = new double[matrice.size()];
@@ -430,7 +456,7 @@ int main(int argc, char **argv)
 	double * nablax = new double[matrice.size()];
 	double * nablay = new double[matrice.size()];
 	int n = matrice.size();
-	cout << "taille : "<< n << endl;
+	cout << "taille : "<< n << ":: time :" << beautify_duration(chrono::duration_cast<chrono::nanoseconds>(stopr-startr)) << endl;
 	double * pi = matrice.calculerPi(1e-6);
 	auto start = chrono::high_resolution_clock::now();
 	while((reste = calcul_norme(vecteur_x, vecteur_y, n)) > 1e-6){
