@@ -420,34 +420,30 @@ void produit_nabla_norme(double* nabla, double Xk, int size, double * nablap)
 
 int main(int argc, char **argv)
 {
-	cout << argv[1] << endl;
-	string line;
-	ifstream file(argv[1]);
+	double epsilon = 1e-6;
 	
-	/*int line_number = 0;
-	int current_line = 0;
-	double norme_x = 0;
-	double norme_y = 0;*/
+	cout << argv[1] << endl;
+	ifstream file(argv[1]);
 
 	
-	//init matrice web
+	//init matrice web et reader
 	Reader r(argv[1],atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
 	r.readHeader();
 	MatriceG matrice(r.getNbSommets(), EPS);
+	
+	//lecture du fichier
 	auto startr = chrono::high_resolution_clock::now();
 	r.read(&matrice);
 	auto stopr = chrono::high_resolution_clock::now();
 	
-	//double* vecteur_max_delta = matrice.getVecteurMax();
+	//init vecteurs utilisés
 	double* vecteur_min_nabla = matrice.getVecteurMin();
-
 	double* vecteur_xkg = new double[matrice.size()];
 	double* vecteur_ykg = new double[matrice.size()];
-
 	double* vecteur_x = NULL;
 	double* vecteur_y = NULL;
 	
-
+	//affectation X^0 Y^0
 	vecteur_x = matrice.getVecteurMin();
 	vecteur_y = matrice.getVecteurMax();
 	
@@ -456,20 +452,28 @@ int main(int argc, char **argv)
 	double * nablax = new double[matrice.size()];
 	double * nablay = new double[matrice.size()];
 	int n = matrice.size();
+	//affichage du temps de lecture et du nombre de sommets du graphe du web
 	cout << "taille : "<< n << ":: time :" << beautify_duration(chrono::duration_cast<chrono::nanoseconds>(stopr-startr)) << endl;
-	double * pi = matrice.calculerPi(1e-6);
+	
+	//calcule de pi avec page rank
+	double * pi = matrice.calculerPi(epsilon);
+	
+	//calcule de pi avec la methode nabla
 	auto start = chrono::high_resolution_clock::now();
-	while((reste = calcul_norme(vecteur_x, vecteur_y, n)) > 1e-6){
+	while((reste = calcul_norme(vecteur_x, vecteur_y, n)) > epsilon){
 		//cout << "itération : "<< count << ":: résidus : " << reste << ":: x :" << calcul_norme(vecteur_x, n) << ":: y :" << calcul_norme(vecteur_y, n) << endl;
 
+		//calcule de XkG+Nabla|X|
 		matrice.produitVecteur(vecteur_x, vecteur_xkg);
 		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_x, n),n, nablax);
 		somme_vect(vecteur_xkg, nablax, n);
 
+		//calcule de YkG+Nabla|Y|
 		matrice.produitVecteur(vecteur_y, vecteur_ykg);
 		produit_nabla_norme(vecteur_min_nabla, calcul_norme(vecteur_y, n),n, nablay);
 		somme_vect(vecteur_ykg, nablay, matrice.size());
 
+		//calcule de Xi+1 et Yi+1
 		for(int i = 0; i < n; i++){
 			vecteur_x[i] = max(vecteur_x[i], ABS(vecteur_xkg[i]));
 			vecteur_y[i] = min(vecteur_y[i], ABS(vecteur_ykg[i]));
@@ -477,7 +481,9 @@ int main(int argc, char **argv)
 		count ++;
 	}
 	auto stop = chrono::high_resolution_clock::now();
+	//affichage du temps de calcule de pi par nabla
 	cout << "itérations : "<< count << ":: résidus : " << reste << ":: time :" << beautify_duration(chrono::duration_cast<chrono::nanoseconds>(stop-start)) << endl;
+	//affichage du résidus entre le pi calculé par pagerank et nabla, si pour x ou y le résidus est superieur a 1e-6, on sait que le pi de page rank n'est pas précis a 1e-6 prét
 	cout << "résidus X - produit succecifs :" << calcul_norme(vecteur_x, pi, n)  << endl << "résidus Y - produit succecifs :" << calcul_norme(vecteur_y, pi, n) << endl;
 	
 	return 0;
