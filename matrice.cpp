@@ -273,17 +273,9 @@ public:
 					PiN[i] += Pi0[curseur->sommet] * EPS * curseur->valeur;
 					curseur = curseur->next;
 				}
-				/*for (int j = 0; j < n; j++) {
-					PiN[i] += valeur(j, i) * Pi0[j];
-				}*/
 				if (maxE < (tmp = fabs(PiN[i] - Pi0[i])))
 					maxE = tmp;
 			}
-			//std::cout << std::endl;
-			//for (int i = 0; i < n; i++) {
-			//	std::cout << PiN[i] << ":";
-			//}
-			//std::cout << std::endl;
 			std::cout << maxE << ";" << a << std::endl;
 			tab = Pi0; Pi0 = PiN; PiN = tab;
 		} while (maxE > epsilon);
@@ -357,7 +349,6 @@ public:
 				m->inserer(x - offset, y - offset, valeur);
 			}
 		}
-		//std::cout << "prout";
 	}
 
 	~Reader() { file.close(); }
